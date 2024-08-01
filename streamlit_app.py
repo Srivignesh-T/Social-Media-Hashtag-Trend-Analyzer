@@ -16,7 +16,7 @@ session = boto3.Session(
     aws_access_key_id=access_key_id,
     aws_secret_access_key=secret_key_id,
     region_name=region
-    )
+)
 
 # Creating a Lambda client
 lambda_client = session.client('lambda')
@@ -30,7 +30,6 @@ post = st.text_input("Type your post here", key="post_input")
 # Button to submit post
 if st.button("Submit Post"):
     if post:
-        print(post)
         # initializes the chat history
         if "messages" not in st.session_state:
             st.session_state.messages = []
@@ -63,29 +62,26 @@ if st.button("Submit Post"):
 
 # Button to list trending hashtags
 if st.button("Trending Hashtags"):
-    limits = {"Trending Top 5": 5, "Trending Top 10": 10}
-    limit = st.selectbox("Select an option to display the Trending Hashtags:", options=limits.keys())
-    if limit:
-        # Invoking a lambda function to retrieve data from DynamoDB
-        response = lambda_client.invoke(
-            FunctionName='Hashtag_analysis',
-            InvocationType='RequestResponse'
-        )
-        response_payload = json.loads(response['Payload'].read().decode('utf-8'))
+    response = lambda_client.invoke(
+        FunctionName='Hashtag_analysis',
+        InvocationType='RequestResponse'
+    )
+    response_payload = json.loads(response['Payload'].read().decode('utf-8'))
+    response_payload = response_payload['body']
 
-        # Displaying the output
-        df = pd.DataFrame(response_payload[:limits[limit]])
-        columns = {'Counts': 'No_Of_Uses'}
-        df.rename(columns=columns, inplace=True)
-        st.write('\n')
-        st.dataframe(df)
-        st.write('\n')
-        st.bar_chart(df, x='Hashtag', y='No_Of_Uses')
+    # Displaying the output in table
+    df = pd.DataFrame(response_payload)
+    columns = {'Counts': 'No_Of_Uses', 'Hashtag': 'Hashtag'}
+    df.rename(columns=columns, inplace=True)
+    st.write('\n')
+    st.dataframe(df)
+    st.write('\n')
+    st.bar_chart(df, x='Hashtag', y='No_Of_Uses')
 
 # Displaying initial information
 st.write("""INFO: \n
-This is a Social Media Posts Trend Analyzer App. The Post Analyzer App \n
-can receive a post, and check for the hashtags used. In the backend which is \n
-then stored and processed in order to analyze the trend of the hashtags used \n
-while posting in this App. \n\n
-Click the buttons above and enjoy the App!!!""")
+This is a Social Media Posts Trend Analyzer App. The Post Analyzer App can receive a post, \n
+and check for the hashtags used. In the backend which is then stored and processed in \n
+order to analyze the trend of the hashtags used while posting in this App. \n\n
+Click the buttons above and try the App :) """)
+

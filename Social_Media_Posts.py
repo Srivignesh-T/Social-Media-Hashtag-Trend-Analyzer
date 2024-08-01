@@ -2,6 +2,11 @@ import json
 import uuid
 import boto3
 import re
+import logging
+
+# Configure logging for debugging purpose in cloudwatch
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event, context):
@@ -10,6 +15,7 @@ def lambda_handler(event, context):
 
     # Extracting the hashtags. \w matches only alphabets and numbers.
     hashtags = re.findall(r'#\w+', msg)
+    logger.info(f"Extracted hashtags: {hashtags}")
 
     # Creating a DynamoDB table connection
     dynamodb = boto3.resource('dynamodb')
@@ -28,7 +34,10 @@ def lambda_handler(event, context):
     # Inserting the post data into table
     try:
         response = table.put_item(Item=item)
+        logger.info(f"Post inserted with ID: {post_id}")
+
     except Exception as e:
+        logger.error(f"Error inserting post: {e}")
         return {
             'statusCode': 400,
             'body': json.dumps(f'{e}')
@@ -37,14 +46,14 @@ def lambda_handler(event, context):
     # Uploading the hashtags to a table
     if len(hashtags) > 0:
         try:
+            hashtag_table_name = 'Post_Hashtags'
             dynamodb = boto3.resource('dynamodb')
-            table = dynamodb.Table('Post_Hashtags')
+            table = dynamodb.Table(hashtag_table_name)
             for hashtag in hashtags:
                 response = table.update_item(Key={'Hashtag': hashtag},
-                                             UpdateExpression='SET #Counts = if_not_exists(#Counts, :start) + :increment',
+                                             UpdateExpression='ADD #Counts:increment',
                                              ExpressionAttributeNames={'#Counts': 'Counts'},
-                                             ExpressionAttributeValues={':increment': 1, ':start': 0},
-                                             ReturnValues="UPDATED_NEW")
+                                             ExpressionAttributeValues={':increment': 1})
             return {
                 'statusCode': 200,
                 'body': json.dumps("Posted Successfully.")
